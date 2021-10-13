@@ -8,7 +8,7 @@
 
 import UIKit
 
-@objc public protocol LTAdvancedScrollViewDelegate: class {
+@objc public protocol LTAdvancedScrollViewDelegate: AnyObject {
     @objc optional func glt_scrollViewOffsetY(_ offsetY: CGFloat)
     @objc optional func glt_titleViewHeightDidChange(_ titleViewHeight: CGFloat)
 }
