@@ -16,8 +16,18 @@ import UIKit
 public class LTAdvancedManager: UIView {
     
     public typealias LTAdvancedDidSelectIndexHandle = (Int) -> Void
+    public typealias LTAdvancedDidSelectSearchBtnHandle = (UIButton) -> Void
+    public typealias LTAdvancedDidSelectTypeBtnHandle = (UIButton) -> Void
+    
     @objc public var advancedDidSelectIndexHandle: LTAdvancedDidSelectIndexHandle?
+    @objc public var advancedDidSelectSearchBtnHandle: LTAdvancedDidSelectSearchBtnHandle?
+    @objc public var advancedDidSelectTypeBtnHandle: LTAdvancedDidSelectTypeBtnHandle?
+    
     @objc public weak var delegate: LTAdvancedScrollViewDelegate?
+    
+    @objc public var buttonTinColor: UIColor?
+    @objc public var searchImage: UIImage?
+    @objc public var typeImage: UIImage?
     
     //设置悬停位置Y值
     @objc public var hoverY: CGFloat = 0
@@ -39,6 +49,14 @@ public class LTAdvancedManager: UIView {
     /* 代码设置滚动到第几个位置 */
     @objc public func scrollToIndex(index: Int)  {
         pageView.scrollToIndex(index: index)
+    }
+    
+    @objc public func setMessageTipViewColor(color: UIColor)  {
+        pageView.setMessageTipViewColor(color: color);
+    }
+    
+    @objc public func setButtonImage(tintcolor: UIColor,searchImg:UIImage,typeImg:UIImage) {
+        pageView.setButtonImage(tintColor:tintcolor,searchImg:searchImg,typeImg:typeImg);
     }
     
     private var kHeaderHeight: CGFloat = 0.0
@@ -100,8 +118,19 @@ extension LTAdvancedManager {
         guard let viewController = viewControllers.first else { return }
         self.contentScrollViewScrollConfig(viewController)
         scrollInsets(viewController, kHeaderHeight+layout.sliderHeight)
+        
+        pageView.searchButton.addTarget(self, action: #selector(searchButtonAction), for: .touchUpInside)
+        pageView.typeButton.addTarget(self, action: #selector(typeButtonAction), for: .touchUpInside)
     }
     
+    @objc func searchButtonAction() {
+        self.advancedDidSelectSearchBtnHandle?(pageView.searchButton)
+    }
+    
+    @objc func typeButtonAction() {
+        print("select new button")
+        self.advancedDidSelectTypeBtnHandle?(pageView.typeButton)
+    }
 }
 
 
@@ -253,12 +282,14 @@ extension LTAdvancedManager {
                     pageTitleViewY = hoverY
                 }
             }
+            pageView.updateButtonUIVertical(currentIndex: currentSelectIndex, isUp: true)
         }else{//向下滑动
             if headerViewOffset < kHeaderHeight {
                 pageTitleViewY = -titleViewBottomDistance + kHeaderHeight
                 if pageTitleViewY >= kHeaderHeight {
                     pageTitleViewY = kHeaderHeight
                 }
+                pageView.updateButtonUIVertical(currentIndex: currentSelectIndex, isUp: false)
             }
         }
         
@@ -269,6 +300,9 @@ extension LTAdvancedManager {
         
         let lastDiffTitleToNavOffset = pageTitleViewY - lastDiffTitleToNav
         lastDiffTitleToNav = pageTitleViewY
+        
+        pageView.currentVerticalContentoffY(currentIndex: currentSelectIndex, pageTitleViewY: pageTitleViewY, hoverY: hoverY)
+        
         //使其他控制器跟随改变
         for subVC in viewControllers {
             guard subVC != currentVc else { continue }
@@ -353,6 +387,7 @@ extension LTAdvancedManager {
         for viewController in viewControllers {
             viewController.glt_scrollView?.delegate = nil
         }
+        pageView.removeFromSuperview()
     }
 }
 

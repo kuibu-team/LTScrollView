@@ -26,7 +26,10 @@ public class LTLayout: NSObject {
     @objc public var titleSelectColor: UIColor? = SELECT_BASE_COLOR
     
     /* 标题字号 */
-    @objc public var titleFont: UIFont? = UIFont.systemFont(ofSize: 16)
+    @objc public var titleFont: UIFont? = UIFont.systemFont(ofSize: 18)
+    
+    /* 标题选中字号 */
+    @objc public var titleSelectFont: UIFont? = UIFont.boldSystemFont(ofSize: 30)
     
     /* 滑块底部线的颜色 - UIColor.blue */
     @objc public var bottomLineColor: UIColor? = UIColor.red
@@ -105,11 +108,13 @@ public class LTPageView: UIView {
     private var glt_currentIndex: Int = 0;
     private var glt_buttons: [UIButton] = []
     private var glt_textWidths: [CGFloat] = []
+    private var glt_textSelectWidths: [CGFloat] = []
     private var glt_startOffsetX: CGFloat = 0.0
     private var glt_clickIndex: Int = 0
     private var isClick: Bool = false
     private var isFirstLoad: Bool = true
     private var glt_lineWidths: [CGFloat] = []
+    private var titleViewHoverHeight: CGFloat = 0.0
     
     private var glt_isClickScrollAnimation = false
     
@@ -134,10 +139,33 @@ public class LTPageView: UIView {
         }
     }
     
+    public lazy var messageTipView: UIView = {
+        let messageTipView = UIView(frame: CGRect(x:(glt_buttons.last?.frame.size.width)!+(glt_buttons.last?.frame.origin.x)!, y:6, width: 8, height: 8))
+        
+        messageTipView.layer.masksToBounds = true;
+        messageTipView.layer.cornerRadius = 4.0;
+        return messageTipView
+    }()
+    
     public lazy var pageTitleView: UIView = {
         let pageTitleView = UIView(frame: CGRect(x: 0, y: 0, width: self.bounds.width, height: self.layout.sliderHeight))
         pageTitleView.backgroundColor = self.layout.titleViewBgColor
         return pageTitleView
+    }()
+    
+    public lazy var searchButton:UIButton = {
+        
+        let searchButton =  UIButton(frame: CGRect(x: self.frame.size.width-100, y: 0, width: 50, height: pageTitleView.frame.size.height))
+        
+        
+        return searchButton;
+    }()
+    
+    public lazy var typeButton:UIButton = {
+        
+        let typeButton =  UIButton(frame: CGRect(x: self.frame.size.width-50, y: 0, width: 50, height: pageTitleView.frame.size.height))
+        
+        return typeButton;
     }()
     
     private lazy var sliderLineView: UIView = {
@@ -186,15 +214,27 @@ public class LTPageView: UIView {
         }
         addSubview(scrollView)
         addSubview(pageTitleView)
-        buttonsLayout()
-        pageTitleView.addSubview(sliderScrollView)
-        sliderScrollView.addSubview(sliderLineView)
         pageTitleView.addSubview(pageBottomLineView)
+        pageTitleView.addSubview(sliderScrollView)
+        pageTitleView.addSubview(searchButton)
+        pageTitleView.addSubview(typeButton)
+        buttonsLayout()
+        sliderScrollView.addSubview(sliderLineView)
         pageTitleView.isHidden = layout.isHiddenPageBottomLine
         sliderLineView.isHidden = layout.isHiddenSlider
         if layout.isHiddenSlider {
             sliderLineView.frame.size.height = 0.0
         }
+    }
+    
+    @objc public func setMessageTipViewColor(color:UIColor){
+        messageTipView.backgroundColor = color;
+    }
+    @objc public func setButtonImage(tintColor: UIColor,searchImg:UIImage,typeImg:UIImage){
+        searchButton.tintColor = tintColor;
+        typeButton.tintColor = tintColor;
+        searchButton.setImage(searchImg, for: UIControl.State.normal)
+        typeButton.setImage(typeImg, for: UIControl.State.normal)
     }
     
     /* 滚动到某个位置 */
@@ -261,7 +301,8 @@ extension LTPageView {
                 }
             }
             
-            let textW = text.boundingRect(with: CGSize(width: CGFloat(MAXFLOAT), height: 8), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font : layout.titleFont ?? UIFont.systemFont(ofSize: 16)], context: nil).size.width
+            //非选中状态的文字宽度
+            let textW = text.boundingRect(with: CGSize(width: CGFloat(MAXFLOAT), height: 8), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font : layout.titleFont ?? UIFont.boldSystemFont(ofSize: 18)], context: nil).size.width+1
             
             if !layout.isAverage {
                 glt_textWidths.append(textW)
@@ -269,7 +310,12 @@ extension LTPageView {
             glt_lineWidths.append(textW)
         }
         
-        
+        //选中状态下的文字宽度
+        for text in titles {
+            let textW = text.boundingRect(with: CGSize(width: CGFloat(MAXFLOAT), height: 8), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font : layout.titleSelectFont ?? UIFont.boldSystemFont(ofSize: 30)], context: nil).size.width+1
+            glt_textSelectWidths.append(textW)
+            
+        }
         
         // 按钮布局
         var upX: CGFloat = layout.lrMargin
@@ -278,7 +324,10 @@ extension LTPageView {
         
         for index in 0..<titles.count {
             
-            let subW = glt_textWidths[index]
+            var subW = glt_textWidths[index]
+            if index == 0{
+                subW = glt_textSelectWidths[index]
+            }
             
             let button = subButton(frame: CGRect(x: upX, y: subY, width: subW, height: subH), flag: index, title: titles[index], parentView: sliderScrollView)
             button.setTitleColor(layout.titleColor, for: .normal)
@@ -294,8 +343,18 @@ extension LTPageView {
             
         }
         
+        pageTitleView .addSubview(messageTipView);
+        
+        messageTipView.frame = CGRect(x:(glt_buttons.last?.frame.size.width)!+(glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
+
+        
         if layout.isNeedScale {
-            glt_buttons[0].transform = CGAffineTransform(scaleX: layout.scale , y: layout.scale)
+            
+//            glt_buttons[0].transform = CGAffineTransform(scaleX: layout.scale , y: layout.scale)
+            //            glt_buttons[0].layer.contentsScale = layout.scale*UIScreen.main.scale;
+            //            glt_buttons[0].layer.setNeedsDisplay()
+        
+            glt_buttons[0].titleLabel?.font = self.layout.titleSelectFont;
         }
         
         // lineView的宽度为第一个的宽度
@@ -404,8 +463,8 @@ extension LTPageView {
         var viewControllerY: CGFloat = 0.0
         layout.isSinglePageView ? viewControllerY = 0.0 : (viewControllerY = layout.sliderHeight)
         VC.view.frame = CGRect(x: scrollView.bounds.width * CGFloat(index), y: viewControllerY, width: scrollView.bounds.width, height: scrollView.bounds.height)
-        scrollView.addSubview(VC.view)
         currentViewController.addChild(VC)
+        scrollView.addSubview(VC.view)
         VC.automaticallyAdjustsScrollViewInsets = false
         addChildVcBlock?(index, VC)
         if let glt_scrollView = VC.glt_scrollView {
@@ -444,8 +503,14 @@ extension LTPageView {
                 
                 if layout.isNeedScale {
                     UIView.animate(withDuration: 0.2, animations: {
-                        currentButton.transform = CGAffineTransform(scaleX: self.layout.scale , y: self.layout.scale)
-                        upButton.transform = CGAffineTransform(scaleX: 1.0 , y: 1.0 )
+                        
+                        
+//                        currentButton.transform = CGAffineTransform(scaleX: self.layout.scale , y: self.layout.scale)
+//
+//                        upButton.transform = CGAffineTransform(scaleX: 1.0 , y: 1.0 )
+                        //点击更新布局
+                        self .updateButtonUI(currentIndex: self.glt_currentIndex)
+                        self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
                     })
                 }
                 
@@ -480,7 +545,148 @@ extension LTPageView {
         }
         
         
+        self .updateButtonUI(currentIndex: self.glt_currentIndex)
         isClick = false
+        
+    }
+    
+    private func updateButtonUI(currentIndex:Int) {
+        
+        var upX: CGFloat = layout.lrMargin
+        let subH = pageTitleView.bounds.height - (self.layout.bottomLineHeight)
+        
+        let subY: CGFloat = 0
+        if pageTitleView.frame.origin.y <= titleViewHoverHeight{
+            for index in 0..<glt_buttons.count {
+                let button = glt_buttons[index]
+                var btnW : CGFloat = 0
+                btnW = glt_textWidths[index]
+                button.titleLabel?.font = self.layout.titleFont
+//                button.contentVerticalAlignment = UIControlContentVerticalAlignment.center;
+//                button.titleEdgeInsets = UIEdgeInsetsMake(0, 0, 0, 0);
+                UIView.animate(withDuration: 0.4) {
+                    button.frame = CGRect(x: upX, y: subY, width: btnW, height: subH)
+                    upX = button.frame.origin.x + btnW + self.layout.titleMargin
+                    button.layoutIfNeeded()
+                }
+                
+            }
+            UIView.animate(withDuration: 0.4) {
+                self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
+                self.messageTipView.layoutIfNeeded()
+                
+            }
+        }else{
+            for index in 0..<glt_buttons.count {
+                let button = glt_buttons[index]
+                var btnW : CGFloat = 0
+//                button.titleEdgeInsets = UIEdgeInsetsMake(0, 0, 10, 0);
+//                button.contentVerticalAlignment = UIControlContentVerticalAlignment.bottom;
+                if currentIndex == index{
+                    //需要放大的button
+                    btnW = glt_textSelectWidths[index]
+                    button.titleLabel?.font = self.layout.titleSelectFont
+                }else{
+                    //正常的button
+                    btnW = glt_textWidths[index]
+                    button.titleLabel?.font = self.layout.titleFont
+                }
+                UIView.animate(withDuration: 0.4) {
+                    button.frame = CGRect(x: upX, y: subY, width: btnW, height: subH)
+                    upX = button.frame.origin.x + btnW + self.layout.titleMargin
+                    button.layoutIfNeeded()
+                    
+                }
+                
+            }
+            UIView.animate(withDuration: 0.4) {
+                self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
+                self.messageTipView.layoutIfNeeded()
+                
+            }
+        }
+    }
+
+    
+    @objc public  func currentVerticalContentoffY(currentIndex:Int, pageTitleViewY:CGFloat,hoverY:CGFloat) {
+        titleViewHoverHeight = hoverY
+        if pageTitleView.frame.origin.y <= titleViewHoverHeight{
+            for index in 0..<glt_buttons.count {
+                let button = glt_buttons[index]
+//                 button.contentVerticalAlignment = UIControlContentVerticalAlignment.center;
+//                button.titleEdgeInsets = UIEdgeInsetsMake(0, 0, 0, 0);
+            }
+//            print("吸顶的时候pageTitleViewY: ",pageTitleView.frame.origin.y,pageTitleViewY,titleViewHoverHeight)
+        }else{
+            for index in 0..<glt_buttons.count {
+                let button = glt_buttons[index]
+//                button.contentVerticalAlignment = UIControlContentVerticalAlignment.bottom;
+//                button.titleEdgeInsets = UIEdgeInsetsMake(0, 0, 10, 0);
+            }
+//            print("pageTitleViewY: ",pageTitleView.frame.origin.y,pageTitleViewY,titleViewHoverHeight)
+        }
+        UIView.animate(withDuration: 0.4) {
+            self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
+            self.messageTipView.layoutIfNeeded()
+            
+        }
+    }
+    
+    //纵向修改UI
+    @objc public  func updateButtonUIVertical(currentIndex:Int, isUp:Bool) {
+        var upX: CGFloat = layout.lrMargin
+        let subH = pageTitleView.bounds.height - (self.layout.bottomLineHeight)
+        
+        let subY: CGFloat = 0
+        if isUp == true {
+            //向上，逐渐缩小
+            for index in 0..<glt_buttons.count {
+                let button = glt_buttons[index]
+                var btnW : CGFloat = 0
+                btnW = glt_textWidths[index]
+                button.titleLabel?.font = self.layout.titleFont
+ 
+                UIView.animate(withDuration: 0.4) {
+                    button.frame = CGRect(x: upX, y: subY, width: btnW, height: subH)
+                    upX = button.frame.origin.x + btnW + self.layout.titleMargin
+                    
+                    button.layoutIfNeeded()
+                    
+                }
+                
+ 
+            }
+        }else{
+            //向下，逐渐放大
+            for index in 0..<glt_buttons.count {
+                let button = glt_buttons[index]
+                var btnW : CGFloat = 0
+                
+                if currentIndex == index{
+                    //需要放大的button
+                    btnW = glt_textSelectWidths[index]
+                    button.titleLabel?.font = self.layout.titleSelectFont
+                    
+                }else{
+                    //正常的button
+                    btnW = glt_textWidths[index]
+                    button.titleLabel?.font = self.layout.titleFont
+                }
+                UIView.animate(withDuration: 0.4) {
+                    
+                    button.frame = CGRect(x: upX, y: subY, width: btnW, height: subH)
+                    upX = button.frame.origin.x + btnW + self.layout.titleMargin
+                    button.layoutIfNeeded()
+                }
+                
+                
+            }
+        }
+        UIView.animate(withDuration: 0.4) {
+            self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
+            self.messageTipView.layoutIfNeeded()
+            
+        }
         
     }
     
@@ -491,17 +697,25 @@ extension LTPageView {
         for button in glt_buttons {
             if button.tag == index {
                 if layout.isNeedScale {
-                    button.transform = CGAffineTransform(scaleX: layout.scale , y: layout.scale)
+                    //button.transform = CGAffineTransform(scaleX: layout.scale , y: layout.scale)
                 }
                 button.setTitleColor(self.layout.titleSelectColor, for: .normal)
             }else {
                 if layout.isNeedScale {
-                    button.transform = CGAffineTransform(scaleX: 1.0 , y: 1.0)
+                    // button.transform = CGAffineTransform(scaleX: 1.0 , y: 1.0)
                 }
                 button.setTitleColor(self.layout.titleColor, for: .normal)
             }
+            self.updateButtonUI(currentIndex: index)
         }
         glt_isClickScrollAnimation = false
+        
+        UIView.animate(withDuration: 0.4) {
+            self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
+            self.messageTipView.layoutIfNeeded()
+            
+        }
+
     }
     
     private func setupButtonStatusAnimation(upButton: UIButton, currentButton: UIButton)  {
@@ -604,9 +818,11 @@ extension LTPageView {
         
         if layout.isNeedScale {
             let scaleDelta = (layout.scale - 1.0) * progress
-            currentButton.transform = CGAffineTransform(scaleX: layout.scale - scaleDelta, y: layout.scale - scaleDelta)
-            nextButton.transform = CGAffineTransform(scaleX: 1.0 + scaleDelta, y: 1.0 + scaleDelta)
+//            currentButton.transform = CGAffineTransform(scaleX: layout.scale - scaleDelta, y: layout.scale - scaleDelta)
+//            nextButton.transform = CGAffineTransform(scaleX: 1.0 + scaleDelta, y: 1.0 + scaleDelta)
         }
+        
+        self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
         
         // 判断是否是自定义Slider的宽度（这里指没有自定义）
         if layout.sliderWidth == glt_sliderDefaultWidth {
@@ -729,6 +945,8 @@ extension LTPageView: UIScrollViewDelegate {
             setupSlierScrollToCenter(offsetX: scrollView.contentOffset.x, index: index)
             setupIsClickScrollAnimation(index: index)
             didSelectIndexBlock?(self, index)
+            self.messageTipView.frame = CGRect(x:(self.glt_buttons.last?.frame.size.width)!+(self.glt_buttons.last?.frame.origin.x)!, y:18, width: 8, height: 8)
+
         }
         
     }
@@ -744,6 +962,11 @@ extension LTPageView {
         button.setTitle(title, for: .normal)
         button.addTarget(self, action: #selector(titleSelectIndex(_:)), for: .touchUpInside)
         button.titleLabel?.font = layout.titleFont
+        
+        button.titleLabel?.adjustsFontSizeToFitWidth=true
+        button.contentVerticalAlignment = UIControl.ContentVerticalAlignment.bottom
+        button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 10, right: 0);
+        
         parentView.addSubview(button)
         return button
     }
