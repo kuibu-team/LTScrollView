@@ -10,6 +10,7 @@ import UIKit
 
 @objc public protocol LTAdvancedScrollViewDelegate: class {
     @objc optional func glt_scrollViewOffsetY(_ offsetY: CGFloat)
+    @objc optional func glt_titleViewHeightDidChange(_ titleViewHeight: CGFloat)
 }
 
 public class LTAdvancedManager: UIView {
@@ -20,6 +21,13 @@ public class LTAdvancedManager: UIView {
     
     //设置悬停位置Y值
     @objc public var hoverY: CGFloat = 0
+    
+    /// 标题View的高度
+    @objc public var titleViewHeight: CGFloat = 0 {
+        didSet {
+            delegate?.glt_titleViewHeightDidChange?(titleViewHeight)
+        }
+    }
     
     /* 点击切换滚动过程动画 */
     @objc public var isClickScrollAnimation = false {
@@ -101,8 +109,13 @@ extension LTAdvancedManager {
     
     //设置ScrollView的contentInset
     private func scrollInsets(_ currentVC: UIViewController ,_ up: CGFloat) {
-        currentVC.glt_scrollView?.contentInset = UIEdgeInsetsMake(up, 0, 0, 0)
-        currentVC.glt_scrollView?.scrollIndicatorInsets = UIEdgeInsetsMake(up, 0, 0, 0)
+        
+        let customContentInset = currentVC.glt_scrollViewCustomContentInset;
+        let targetContentInset = UIEdgeInsets(top: up + customContentInset.top, left: customContentInset.left, bottom: customContentInset.bottom, right: customContentInset.right)
+        currentVC.glt_scrollView?.contentInset = targetContentInset
+        if #available(iOS 11.1, *) {
+            currentVC.glt_scrollView?.verticalScrollIndicatorInsets = targetContentInset
+        }
     }
     
     //MARK: 首次创建pageView的ChildVC回调
@@ -251,6 +264,9 @@ extension LTAdvancedManager {
         
         pageView.pageTitleView.frame.origin.y = pageTitleViewY
         headerView?.frame.origin.y = pageTitleViewY - kHeaderHeight
+        
+        titleViewHeight = pageTitleViewY + pageView.pageTitleView.bounds.height
+        
         let lastDiffTitleToNavOffset = pageTitleViewY - lastDiffTitleToNav
         lastDiffTitleToNav = pageTitleViewY
         //使其他控制器跟随改变
@@ -339,3 +355,14 @@ extension LTAdvancedManager {
         }
     }
 }
+
+extension LTAdvancedManager {
+    
+    @objc
+    public func resetupCurrentViewControllerContentScrollView() {
+        let currentPage = viewControllers[currentSelectIndex]
+        scrollInsets(currentPage, kHeaderHeight + layout.sliderHeight)
+        contentScrollViewScrollConfig(currentPage)
+    }
+}
+

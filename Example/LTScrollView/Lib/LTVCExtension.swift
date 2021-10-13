@@ -14,11 +14,17 @@ extension UIViewController {
     private struct LTVCKey {
         static var sKey = "glt_scrollViewKey"
         static var oKey = "glt_upOffsetKey"
+        static var cKey = "glt_scrollViewCustomContentInsetKey"
     }
     
     @objc public var glt_scrollView: UIScrollView? {
         get { return objc_getAssociatedObject(self, &LTVCKey.sKey) as? UIScrollView }
         set { objc_setAssociatedObject(self, &LTVCKey.sKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+    
+    @objc public var glt_scrollViewCustomContentInset: UIEdgeInsets {
+        get { return (objc_getAssociatedObject(self, &LTVCKey.cKey) as? UIEdgeInsets) ?? .zero }
+        set { objc_setAssociatedObject(self, &LTVCKey.cKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
     
     public var glt_upOffset: String? {
